@@ -33,8 +33,8 @@ def parse_command_line_arguments() -> Path:
     """
     parser = ArgumentParser()
     parser.add_argument("-d", "--directory",
-                        type = Path,
                         default = Path("data"),
+                        type = Path,
                         help = "Path to the directory where historical Premier League match data will be stored.")
     arguments = parser.parse_args()
     return arguments.directory
