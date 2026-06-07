@@ -24,7 +24,7 @@ def load_raw_seasons(raw_dir: Path, seasons: list[str]) -> pd.DataFrame:
         if not path.exists():
             print(f"Warning: {path} not found, skipping.")
             continue
-        df = pd.read_csv(path, encoding="latin-1")
+        df = pd.read_csv(path, encoding="utf-8")
         df["season"] = season
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
@@ -41,7 +41,7 @@ def standardize_team_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_and_validate(df: pd.DataFrame) -> pd.DataFrame:
-    df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce")
+    df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce", format="mixed")
     df = df.dropna(subset=["Date"])
     df = df.dropna(subset=["FTHG", "FTAG"])
     df["FTHG"] = df["FTHG"].astype("int64")

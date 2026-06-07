@@ -4,3 +4,5 @@ venv/
 
 # Data
 data/
+
+*_pycache__/
