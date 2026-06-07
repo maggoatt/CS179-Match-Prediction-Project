@@ -80,6 +80,56 @@ def build_and_fit(
     return idata
 
 
+def build_and_fit_no_home_adv(
+    train_df: pd.DataFrame,
+    team_mapping: dict,
+    **kwargs,
+) -> az.InferenceData:
+    """
+    Remove home advantage component to see its effect(home_adv fixed at 0, not sampled).
+    Everything else is identical to build_and_fit.
+    Saves to POSTERIOR_DIR / "trace_no_home_adv.nc".
+
+    """
+    from src.config import POSTERIOR_DIR
+
+    n_teams    = len(team_mapping)
+    home_ids   = train_df["home_team_id"].values
+    away_ids   = train_df["away_team_id"].values
+    home_goals = train_df["FTHG"].values
+    away_goals = train_df["FTAG"].values
+
+    valid = (home_ids >= 0) & (away_ids >= 0)
+    home_ids, away_ids = home_ids[valid], away_ids[valid]
+    home_goals, away_goals = home_goals[valid], away_goals[valid]
+
+    with pm.Model():
+        mu        = pm.Normal("mu", mu=0, sigma=1)
+        sigma_att = pm.HalfNormal("sigma_att", sigma=1)
+        sigma_def = pm.HalfNormal("sigma_def", sigma=1)
+
+        attack_raw  = pm.Normal("attack_raw",  mu=0, sigma=sigma_att, shape=n_teams)
+        defense_raw = pm.Normal("defense_raw", mu=0, sigma=sigma_def, shape=n_teams)
+
+        attack  = pm.Deterministic("attack",  attack_raw  - pt.mean(attack_raw))
+        defense = pm.Deterministic("defense", defense_raw - pt.mean(defense_raw))
+
+        # home_adv is 0.0 — not a random variable
+        log_lh = mu + attack[home_ids] - defense[away_ids]
+        log_la = mu + attack[away_ids] - defense[home_ids]
+
+        pm.Poisson("home_goals", mu=pm.math.exp(log_lh), observed=home_goals)
+        pm.Poisson("away_goals", mu=pm.math.exp(log_la), observed=away_goals)
+
+        idata = pm.sample(
+            **{**{"draws": 1000, "tune": 500, "random_seed": 42}, **kwargs},
+            return_inferencedata=True,
+        )
+
+    az.to_netcdf(idata, POSTERIOR_DIR / "trace_no_home_adv.nc")
+    return idata
+
+
 def load_trace(filename: str = "trace.nc") -> az.InferenceData:
     """Load a previously saved MCMC trace from POSTERIOR_DIR."""
     from src.config import POSTERIOR_DIR
