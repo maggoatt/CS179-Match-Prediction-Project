@@ -1,2 +1,9 @@
 # Data
 requests
+numpy
+pandas
+
+# Analysis
+matplotlib
+jupyter
+ipykernel
