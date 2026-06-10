@@ -54,7 +54,7 @@ class HistoricalFrequencyBaseline:
 
 class NonBayesianPoissonBaseline:
     """
-    A baseline model predicting match outcomes based on Poisson distributions over home goals and away goals.
+    A non-Bayesian baseline model predicting match outcomes based on Poisson distributions over home goals and away goals.
     
     Given a home team A and an away team B:
 
@@ -66,7 +66,7 @@ class NonBayesianPoissonBaseline:
 
     def __init__(self) -> None:
         """
-        Initializes the team Poisson baseline model.
+        Initializes the non-Bayesian Poisson baseline model.
         
         :return: None.
         """
@@ -81,7 +81,7 @@ class NonBayesianPoissonBaseline:
 
     def fit(self, train_df: pd.DataFrame) -> "NonBayesianPoissonBaseline":
         """
-        Fits the Poisson baseline model to the training data by calculating the average number of home goals scored and conceded by a team and 
+        Fits the non-Bayesian Poisson baseline model to the training data by calculating the average number of home goals scored and conceded by a team and 
         the average number of away goals scored and conceded by a team.
         
         :param train_df: A DataFrame object storing historical Premier League match data to train from.
