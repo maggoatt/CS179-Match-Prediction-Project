@@ -15,11 +15,11 @@ TABLES_DIR         = OUTPUT_DIR / "tables"
 LEAGUE_CODE     = "E0"
 # NOTE: The maximum number of goals scored by a single team in a single Premier League game is 9
 MAX_GOALS       = 9
-RANDOM_SEED     = 42
 UNKNOWN_TEAM_ID = -1
+RANDOM_SEED     = 42
 
-TRAIN_SEASONS = ["15-16", "16-17", "17-18", "18-19", "19-20", "20-21", "21-22"]
-VAL_SEASONS   = ["22-23"]
-TEST_SEASONS  = ["23-24"]
 
-ALL_SEASONS = TRAIN_SEASONS + VAL_SEASONS + TEST_SEASONS
+TRAIN_SEASONS = ["16-17", "17-18", "18-19", "19-20", "20-21", "21-22", "22-23", "23-24"]
+TEST_SEASONS  = ["24-25", "25-26"]
+
+ALL_SEASONS = TRAIN_SEASONS + TEST_SEASONS

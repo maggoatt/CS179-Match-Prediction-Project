@@ -21,7 +21,6 @@ MATCH_DATA_URLS: dict[str, str] = {
     "18-19": "https://www.football-data.co.uk/mmz4281/1819/E0.csv",
     "17-18": "https://www.football-data.co.uk/mmz4281/1718/E0.csv",
     "16-17": "https://www.football-data.co.uk/mmz4281/1617/E0.csv",
-    "15-16": "https://www.football-data.co.uk/mmz4281/1516/E0.csv",
 }
 
 

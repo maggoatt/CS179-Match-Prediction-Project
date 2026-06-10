@@ -8,7 +8,7 @@ import pandas as pd
 from src.config import RAW_DATA_DIR, PROCESSED_DATA_DIR, ALL_SEASONS
 
 
-DF_REQUIRED_COLUMNS = ["Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR", "Season"]
+DF_REQUIRED_COLUMNS = ["Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR"]
 DF_RENAMED_COLUMNS = {
     "FTHG": "HomeGoals",
     "FTAG": "AwayGoals",
@@ -42,10 +42,13 @@ def load_raw_seasons(raw_directory: Path, seasons: list[str]) -> pd.DataFrame:
         if not path.exists():
             print(f"Warning: season {season} data not found at {path}, skipping.")
             continue
-        df = pd.read_csv(path, encoding = "utf-8")
+        df = pd.read_csv(path,
+                         encoding = "utf-8",
+                         usecols = DF_REQUIRED_COLUMNS)
+        df = df.copy()
         df["Season"] = season
         dfs.append(df)
-    return pd.concat(dfs, ignore_index = True)
+    return pd.concat(dfs, ignore_index = True).copy()
 
 
 def process_columns(df: pd.DataFrame)  -> pd.DataFrame:
@@ -55,22 +58,9 @@ def process_columns(df: pd.DataFrame)  -> pd.DataFrame:
     :param df: A DataFrame object storing raw historical Premier League match data.
     :return: A new DataFrame object storing historical Premier League match data with processed columns.
     """
-    df = keep_required_columns(df)
     df = rename_columns(df)
     df = reorder_columns(df)
     return df
-
-
-def keep_required_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Keeps the columns of historical Premier League match data required for match outcome prediction.
-    
-    :param df: A DataFrame object storing raw historical Premier League match data.
-    :return: A new DataFrame object storing columns of historical Premier League match data required for match outcome prediction.
-    """
-    return df[[column
-               for column in DF_REQUIRED_COLUMNS
-               if column in df.columns]].copy()
 
 
 def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
