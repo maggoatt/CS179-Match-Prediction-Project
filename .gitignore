@@ -4,5 +4,6 @@ venv/
 
 # Data
 data/
+!src/data/
 
 *_pycache__/

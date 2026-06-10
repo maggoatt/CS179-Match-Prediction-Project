@@ -1,7 +1,7 @@
 """
 A module for downloading historical Premier League match data.
 
-To download the match data into the directory `data`, execute `python3 src/download_data.py`.
+To download the match data into the directory `data/raw`, execute `python3 src/download_data.py`.
 To download the match data into the directory `DATA_DIRECTORY`, execute `python3 src/download_data.py [-d DATA_DIRECTORY]`.
 """
 from argparse import ArgumentParser
@@ -33,7 +33,7 @@ def parse_command_line_arguments() -> Path:
     """
     parser = ArgumentParser()
     parser.add_argument("-d", "--directory",
-                        default = Path("data"),
+                        default = Path("data/raw"),
                         type = Path,
                         help = "Path to the directory where historical Premier League match data will be stored.")
     arguments = parser.parse_args()

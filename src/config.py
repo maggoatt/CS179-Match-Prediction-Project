@@ -1,4 +1,8 @@
+"""
+A module storing project-level configurations.
+"""
 from pathlib import Path
+
 
 ROOT_DIR           = Path(__file__).parent.parent
 RAW_DATA_DIR       = ROOT_DIR / "data" / "raw"
@@ -9,7 +13,8 @@ FIGURES_DIR        = OUTPUT_DIR / "figures"
 TABLES_DIR         = OUTPUT_DIR / "tables"
 
 LEAGUE_CODE     = "E0"
-MAX_GOALS       = 10
+# NOTE: The maximum number of goals scored by a single team in a single Premier League game is 9
+MAX_GOALS       = 9
 RANDOM_SEED     = 42
 UNKNOWN_TEAM_ID = -1
 
