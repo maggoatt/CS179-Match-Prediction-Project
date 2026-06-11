@@ -23,7 +23,7 @@ class SVIConfig:
     Represents a configuration for SVI.
     """
     record_loss_every_n_steps: int = 100
-    num_steps: int = 10_000
+    num_steps: int = 500
     learning_rate: float = 0.0025
     num_particles: int = 5
     clip_norm: float = 5.0
