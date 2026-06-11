@@ -23,9 +23,10 @@ class SVIConfig:
     Represents a configuration for SVI.
     """
     record_loss_every_n_steps: int = 100
-    num_steps: int = 5_000
-    learning_rate: float = 0.01
-
+    num_steps: int = 10_000
+    learning_rate: float = 0.0025
+    num_particles: int = 5
+    clip_norm: float = 5.0
 
 @dataclass(frozen = True, kw_only = True, slots = True)
 class BayesianPoissonModelConfig:
@@ -48,16 +49,16 @@ class BayesianPoissonModel:
     
     Given a home team A and an away team B:
     - The Poisson distribution over home-team goals is parameterized by λ_home
-        - λ_home = exp(μ + home_team_advantage + attacking_strength_A - defensive_strength_B)
+        - λ_home = exp(μ + home_team_advantage + home_attacking_strength_A - away_defensive_strength_B)
             - μ represents a general scoring bias for any team
             - home_team_advantage represents a general home-team advantage bias for any team
-            - attacking_strengh_i represents the mean-centered latent attacking strength of team i
-            - defensive_strength_j represents the mean-centered latent defensive strength of team j
+            - home_attacking_strength_i represents the mean-centered latent attacking strength of team i
+            - away_defensive_strength_j represents the mean-centered latent defensive strength of team j
     - The Poisson distribution over away-team goals is parameterized by λ_away
-        - λ_away = exp(μ + attacking_strength_B - defensive_strength_A)
+        - λ_away = exp(μ + home_attacking_strength_B - away_defensive_strength_A)
             - μ represents a general scoring bias for any team
-            - attacking_strengh_i represents the mean-centered latent attacking strength of team i
-            - defensive_strength_j represents the mean-centered latent defensive strength of team j
+            - home_attacking_strengh_i represents the mean-centered latent attacking strength of team i
+            - away_defensive_strength_j represents the mean-centered latent defensive strength of team j
     - Each parameter (e.g. μ, h, attacking_strength_i, defensive_strength_j) is represented by some prior distribution
     - Given training data, the model employs SVI to infer posterior distributions for the parameters
 
@@ -91,8 +92,9 @@ class BayesianPoissonModel:
         observed_away_team_goals = self._series_to_tensor(train_df["AwayGoals"])
         
         self.guide = AutoNormal(self._model)
-        optimizer = ClippedAdam({"lr": self.config.svi.learning_rate})
-        svi = SVI(self._model, self.guide, optimizer, loss = Trace_ELBO())
+        optimizer = ClippedAdam({"lr": self.config.svi.learning_rate,
+                                 "clip_norm": self.config.svi.clip_norm})
+        svi = SVI(self._model, self.guide, optimizer, loss = Trace_ELBO(num_particles = self.config.svi.num_particles))
         for step in range(1, self.config.svi.num_steps + 1):
             loss = svi.step(home_team_ids, away_team_ids, observed_home_team_goals, observed_away_team_goals)
             loss = cast(float, loss)
@@ -110,12 +112,14 @@ class BayesianPoissonModel:
                observed_away_goals: Tensor) -> None:
         mu = pyro.sample("mu", dist.Normal(0.0, 1.0))
         home_team_advantage = self._sample_home_team_advantage()
-        attacking_strengths = self._sample_team_strengths("attacking_strengths", self.config.ablate_attack)
-        defensive_strengths = self._sample_team_strengths("defensive_strengths", self.config.ablate_defense)
+        home_attacking_strengths = self._sample_team_strengths("home_attacking_strengths", self.config.ablate_attack)
+        away_attacking_strengths = self._sample_team_strengths("away_attacking_strengths", self.config.ablate_attack)
+        home_defensive_strengths = self._sample_team_strengths("home_defensive_strengths", self.config.ablate_defense)
+        away_defensive_strengths = self._sample_team_strengths("away_defensive_strengths", self.config.ablate_defense)
 
         lambda_home = torch.exp(mu + home_team_advantage +
-                                attacking_strengths[home_team_ids] - defensive_strengths[away_team_ids])
-        lambda_away = torch.exp(mu + attacking_strengths[away_team_ids] - defensive_strengths[home_team_ids])
+                                home_attacking_strengths[home_team_ids] - away_defensive_strengths[away_team_ids])
+        lambda_away = torch.exp(mu + away_attacking_strengths[away_team_ids] - home_defensive_strengths[home_team_ids])
 
         with pyro.plate("matches", len(home_team_ids)):
             pyro.sample("home_goals", dist.Poisson(lambda_home),
@@ -177,19 +181,26 @@ class BayesianPoissonModel:
                                                   dummy_away_goals)
                     mu = posterior_sample["mu"]
                     home_team_advantage = self._get_posterior_home_team_advantage(posterior_sample)
-                    attacking_strengths = self._get_posterior_team_strengths(posterior_sample, "attacking_strengths", self.config.ablate_attack)
-                    defensive_strengths = self._get_posterior_team_strengths(posterior_sample, "defensive_strengths", self.config.ablate_defense)
-                    
-                    lambda_home = torch.exp(mu + home_team_advantage + attacking_strengths[home_team_id] - defensive_strengths[away_team_id])
-                    lambda_away = torch.exp(mu + attacking_strengths[away_team_id] - defensive_strengths[home_team_id])
-                    
+                    home_attacking_strengths = self._get_posterior_team_strengths(posterior_sample, "home_attacking_strengths", self.config.ablate_attack)
+                    away_attacking_strengths = self._get_posterior_team_strengths(posterior_sample, "away_attacking_strengths", self.config.ablate_attack)
+                    home_defensive_strengths = self._get_posterior_team_strengths(posterior_sample, "home_defensive_strengths", self.config.ablate_defense)
+                    away_defensive_strengths = self._get_posterior_team_strengths(posterior_sample, "away_defensive_strengths", self.config.ablate_defense)
+
+                    lambda_home = torch.exp(mu + home_team_advantage + self._lookup_team_strength(home_attacking_strengths, home_team_id) - self._lookup_team_strength(away_defensive_strengths, away_team_id))
+                    lambda_away = torch.exp(mu + self._lookup_team_strength(away_attacking_strengths, away_team_id) - self._lookup_team_strength(home_defensive_strengths, home_team_id))
+        
                     sampled_probs = self._compute_outcome_probabilities(lambda_home, lambda_away)
-                    probs_per_test_match.append(sampled_probs, )
+                    probs_per_test_match.append(sampled_probs)
                     
                 probs.append(torch.stack(probs_per_test_match).mean(dim = 0))
             probs = torch.stack(probs).detach().cpu().numpy()
             predict_df[["ProbHomeWin", "ProbDraw", "ProbAwayWin"]] = probs
         return predict_df
+
+    def _lookup_team_strength(self, strengths: Tensor, team_id: int) -> Tensor:
+        if team_id < 0:
+            return torch.zeros((), device = self.config.device, dtype = strengths.dtype)
+        return strengths[team_id]
 
     def _get_posterior_home_team_advantage(self, posterior_sample: dict[str, Tensor]) -> Tensor:
         if self.config.ablate_home_team_advantage:
